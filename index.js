@@ -14,6 +14,7 @@ const upload = multer({
     },
   }),
 });
+const detectProduct = require("./helpers/detectProduct");
 
 app.use(express.json());
 app.use(cors());
@@ -119,23 +120,26 @@ app.post("/products", (req, res) => {
   if (!name || !description || !price || !seller || !imageUrl) {
     res.status(400).send("모든 필드가 작성되지 않았습니다.");
   }
-  models.Product.create({
-    name,
-    description,
-    price,
-    seller,
-    imageUrl,
-  })
-    .then((result) => {
-      console.log("상품 생성 결과: ", result);
-      res.send({
-        result,
-      });
+  detectProduct(imageUrl, (type) => {
+    models.Product.create({
+      name,
+      description,
+      price,
+      seller,
+      imageUrl,
+      type,
     })
-    .catch((error) => {
-      console.error(error);
-      res.status(400).send("상품 업로드에 문제가 발생했습니다.");
-    });
+      .then((result) => {
+        console.log("상품 생성 결과: ", result);
+        res.send({
+          result,
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+        res.status(400).send("상품 업로드에 문제가 발생했습니다.");
+      });
+  });
 });
 
 app.get("/products/:id", (req, res) => {
@@ -155,6 +159,33 @@ app.get("/products/:id", (req, res) => {
     .catch((error) => {
       console.error(error);
       res.status(400).send("상품 조회에 에러가 발생했습니다.");
+    });
+});
+
+app.get("/products/:id/recommendation", (req, res) => {
+  const { id } = req.params;
+  models.Product.findOne({
+    where: {
+      id,
+    },
+  })
+    .then((product) => {
+      const type = product.type;
+      models.Product.findAll({
+        where: {
+          type,
+          id: {
+            [models.Sequelize.Op.ne]: id,
+          },
+        },
+      }).then((product) => {
+        res.send({
+          products,
+        });
+      });
+    })
+    .catch((error) => {
+      res.status(500).send("에러가 발생하였습니다.");
     });
 });
 
